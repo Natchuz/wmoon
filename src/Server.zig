@@ -31,10 +31,8 @@ const Control = @import("Control.zig");
 const DecorationManager = @import("DecorationManager.zig");
 const InputManager = @import("InputManager.zig");
 const LayerSurface = @import("LayerSurface.zig");
-const LayoutManager = @import("LayoutManager.zig");
 const Output = @import("Output.zig");
 const Root = @import("Root.zig");
-const StatusManager = @import("StatusManager.zig");
 const View = @import("View.zig");
 const ViewStack = @import("view_stack.zig").ViewStack;
 const XwaylandUnmanaged = @import("XwaylandUnmanaged.zig");
@@ -65,9 +63,6 @@ decoration_manager: DecorationManager,
 input_manager: InputManager,
 root: Root,
 config: Config,
-control: Control,
-status_manager: StatusManager,
-layout_manager: LayoutManager,
 
 pub fn init(self: *Self) !void {
     self.wl_server = try wl.Server.create();
@@ -119,9 +114,6 @@ pub fn init(self: *Self) !void {
     try self.root.init();
     // Must be called after root is initialized
     try self.input_manager.init();
-    try self.control.init();
-    try self.status_manager.init();
-    try self.layout_manager.init();
 
     // These all free themselves when the wl_server is destroyed
     _ = try wlr.DataDeviceManager.create(self.wl_server);
