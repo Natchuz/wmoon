@@ -17,7 +17,6 @@
 
 const Self = @This();
 
-const build_options = @import("build_options");
 const std = @import("std");
 const assert = std.debug.assert;
 const os = std.os;
@@ -173,22 +172,20 @@ pub fn setTheme(self: *Self, theme: ?[*:0]const u8, _size: ?u32) !void {
         if (c.setenv("XCURSOR_SIZE", size_str, 1) < 0) return error.OutOfMemory;
         if (theme) |t| if (c.setenv("XCURSOR_THEME", t, 1) < 0) return error.OutOfMemory;
 
-        if (build_options.xwayland) {
-            self.xcursor_manager.load(1) catch {
-                log.err("failed to load xcursor theme '{s}' at scale 1", .{theme});
-                return;
-            };
-            const wlr_xcursor = self.xcursor_manager.getXcursor("left_ptr", 1).?;
-            const image = wlr_xcursor.images[0];
-            server.xwayland.setCursor(
-                image.buffer,
-                image.width * 4,
-                image.width,
-                image.height,
-                @intCast(i32, image.hotspot_x),
-                @intCast(i32, image.hotspot_y),
-            );
-        }
+        self.xcursor_manager.load(1) catch {
+            log.err("failed to load xcursor theme '{s}' at scale 1", .{theme});
+            return;
+        };
+        const wlr_xcursor = self.xcursor_manager.getXcursor("left_ptr", 1).?;
+        const image = wlr_xcursor.images[0];
+        server.xwayland.setCursor(
+            image.buffer,
+            image.width * 4,
+            image.width,
+            image.height,
+            @intCast(i32, image.hotspot_x),
+            @intCast(i32, image.hotspot_y),
+        );
     }
 }
 
@@ -262,7 +259,7 @@ fn handleButton(listener: *wl.Listener(*wlr.Pointer.event.Button), event: *wlr.P
                     self.seat.setFocusRaw(.{ .layer = layer_surface });
                 }
             },
-            .xwayland_unmanaged => assert(build_options.xwayland),
+            .xwayland_unmanaged => {},
         }
         _ = self.seat.wlr_seat.pointerNotifyButton(event.time_msec, event.button, event.state);
     }
@@ -434,7 +431,7 @@ const SurfaceAtResult = struct {
     parent: union(enum) {
         view: *View,
         layer_surface: *LayerSurface,
-        xwayland_unmanaged: if (build_options.xwayland) *XwaylandUnmanaged else void,
+        xwayland_unmanaged: *XwaylandUnmanaged,
     },
 };
 
@@ -476,7 +473,7 @@ pub fn surfaceAt(self: Self) ?SurfaceAtResult {
     if (layerSurfaceAt(output.getLayer(.overlay).*, ox, oy)) |s| return s;
 
     if (fullscreen_view) |view| {
-        if (build_options.xwayland) if (xwaylandUnmanagedSurfaceAt(ly, lx)) |s| return s;
+        if (xwaylandUnmanagedSurfaceAt(ly, lx)) |s| return s;
         var sx: f64 = undefined;
         var sy: f64 = undefined;
         if (view.surfaceAt(ox, oy, &sx, &sy)) |found| {
@@ -494,7 +491,7 @@ pub fn surfaceAt(self: Self) ?SurfaceAtResult {
 
         if (layerSurfaceAt(output.getLayer(.top).*, ox, oy)) |s| return s;
 
-        if (build_options.xwayland) if (xwaylandUnmanagedSurfaceAt(lx, ly)) |s| return s;
+        if (xwaylandUnmanagedSurfaceAt(lx, ly)) |s| return s;
 
         if (viewSurfaceAt(output, ox, oy)) |s| return s;
 
@@ -824,7 +821,7 @@ pub fn checkFocusFollowsCursor(self: *Self) void {
                     }
                 },
                 .layer_surface => {},
-                .xwayland_unmanaged => assert(build_options.xwayland),
+                .xwayland_unmanaged => {},
             }
         }
     }

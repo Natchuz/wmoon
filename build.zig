@@ -16,12 +16,6 @@ pub fn build(b: *zbs.Builder) !void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
 
-    const xwayland = b.option(
-        bool,
-        "xwayland",
-        "Set to false to disable xwayland support",
-    ) orelse true;
-
     // Obtain full version name
     const full_version = blk: {
         if (mem.endsWith(u8, version, "-dev")) {
@@ -55,7 +49,6 @@ pub fn build(b: *zbs.Builder) !void {
     const wmoon_build = b.addExecutable("wmoon", "src/main.zig");
     wmoon_build.setTarget(target);
     wmoon_build.setBuildMode(mode);
-    wmoon_build.addBuildOption(bool, "xwayland", xwayland);
     wmoon_build.addBuildOption([:0]const u8, "version", full_version);
     addServerDeps(wmoon_build, scanner);
     wmoon_build.install();
@@ -73,7 +66,6 @@ pub fn build(b: *zbs.Builder) !void {
     const wmoon_test = b.addTest("src/test_main.zig");
     wmoon_test.setTarget(target);
     wmoon_test.setBuildMode(mode);
-    wmoon_test.addBuildOption(bool, "xwayland", xwayland);
     addServerDeps(wmoon_test, scanner);
     const test_step = b.step("test", "Run the tests");
     test_step.dependOn(&wmoon_test.step);

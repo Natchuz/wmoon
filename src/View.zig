@@ -17,7 +17,6 @@
 
 const Self = @This();
 
-const build_options = @import("build_options");
 const std = @import("std");
 const assert = std.debug.assert;
 const math = std.math;
@@ -33,7 +32,7 @@ const Output = @import("Output.zig");
 const Seat = @import("Seat.zig");
 const ViewStack = @import("view_stack.zig").ViewStack;
 const XdgToplevel = @import("XdgToplevel.zig");
-const XwaylandView = if (build_options.xwayland) @import("XwaylandView.zig") else @import("VoidView.zig");
+const XwaylandView = @import("XwaylandView.zig");
 
 const log = std.log.scoped(.view);
 
@@ -146,7 +145,7 @@ pub fn init(self: *Self, output: *Output, tags: u32, surface: anytype) void {
     if (@TypeOf(surface) == *wlr.XdgSurface) {
         self.impl = .{ .xdg_toplevel = undefined };
         self.impl.xdg_toplevel.init(self, surface);
-    } else if (build_options.xwayland and @TypeOf(surface) == *wlr.XwaylandSurface) {
+    } else if (@TypeOf(surface) == *wlr.XwaylandSurface) {
         self.impl = .{ .xwayland_view = undefined };
         self.impl.xwayland_view.init(self, surface);
     } else unreachable;
@@ -359,7 +358,6 @@ pub inline fn forEachSurface(
             xdg_toplevel.xdg_surface.forEachSurface(T, iterator, user_data);
         },
         .xwayland_view => {
-            assert(build_options.xwayland);
             self.surface.?.forEachSurface(T, iterator, user_data);
         },
     }
@@ -433,18 +431,17 @@ pub fn fromWlrSurface(surface: *wlr.Surface) ?*Self {
             return @intToPtr(*Self, xdg_surface.data);
         }
     }
-    if (build_options.xwayland) {
-        if (surface.isXWaylandSurface()) {
-            const xwayland_surface = wlr.XwaylandSurface.fromWlrSurface(surface);
-            return @intToPtr(*Self, xwayland_surface.data);
-        }
+    if (surface.isXWaylandSurface()) {
+        const xwayland_surface = wlr.XwaylandSurface.fromWlrSurface(surface);
+        return @intToPtr(*Self, xwayland_surface.data);
     }
+
     return null;
 }
 
 pub fn shouldTrackConfigure(self: Self) bool {
     // We don't give a damn about frame perfection for xwayland views
-    if (build_options.xwayland and self.impl == .xwayland_view) return false;
+    if (self.impl == .xwayland_view) return false;
 
     // There are exactly three cases in which we do not track configures
     // 1. the view was and remains floating

@@ -17,7 +17,6 @@
 
 const Self = @This();
 
-const build_options = @import("build_options");
 const std = @import("std");
 const mem = std.mem;
 const wlr = @import("wlroots");
@@ -53,8 +52,8 @@ new_xdg_surface: wl.Listener(*wlr.XdgSurface),
 layer_shell: *wlr.LayerShellV1,
 new_layer_surface: wl.Listener(*wlr.LayerSurfaceV1),
 
-xwayland: if (build_options.xwayland) *wlr.Xwayland else void,
-new_xwayland_surface: if (build_options.xwayland) wl.Listener(*wlr.XwaylandSurface) else void,
+xwayland: *wlr.Xwayland,
+new_xwayland_surface: wl.Listener(*wlr.XwaylandSurface),
 
 foreign_toplevel_manager: *wlr.ForeignToplevelManagerV1,
 xdg_activation: *wlr.XdgActivationV1,
@@ -97,12 +96,10 @@ pub fn init(self: *Self) !void {
     self.new_layer_surface.setNotify(handleNewLayerSurface);
     self.layer_shell.events.new_surface.add(&self.new_layer_surface);
 
-    // Set up xwayland if built with support
-    if (build_options.xwayland) {
-        self.xwayland = try wlr.Xwayland.create(self.wl_server, compositor, false);
-        self.new_xwayland_surface.setNotify(handleNewXwaylandSurface);
-        self.xwayland.events.new_surface.add(&self.new_xwayland_surface);
-    }
+    // Set up xwayland
+    self.xwayland = try wlr.Xwayland.create(self.wl_server, compositor, false);
+    self.new_xwayland_surface.setNotify(handleNewXwaylandSurface);
+    self.xwayland.events.new_surface.add(&self.new_xwayland_surface);
 
     self.foreign_toplevel_manager = try wlr.ForeignToplevelManagerV1.create(self.wl_server);
     self.xdg_activation = try wlr.XdgActivationV1.create(self.wl_server);
@@ -129,7 +126,7 @@ pub fn deinit(self: *Self) void {
     self.sigint_source.remove();
     self.sigterm_source.remove();
 
-    if (build_options.xwayland) self.xwayland.destroy();
+    self.xwayland.destroy();
 
     self.wl_server.destroyClients();
 
@@ -150,9 +147,7 @@ pub fn start(self: Self) !void {
     try self.backend.start();
     // TODO: don't use libc's setenv
     if (c.setenv("WAYLAND_DISPLAY", socket, 1) < 0) return error.SetenvError;
-    if (build_options.xwayland) {
-        if (c.setenv("DISPLAY", self.xwayland.display_name, 1) < 0) return error.SetenvError;
-    }
+    if (c.setenv("DISPLAY", self.xwayland.display_name, 1) < 0) return error.SetenvError;
 }
 
 /// Handle SIGINT and SIGTERM by gracefully stopping the server

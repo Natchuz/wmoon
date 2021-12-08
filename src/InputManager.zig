@@ -17,7 +17,6 @@
 
 const Self = @This();
 
-const build_options = @import("build_options");
 const std = @import("std");
 const mem = std.mem;
 const ascii = std.ascii;
@@ -130,7 +129,7 @@ pub fn init(self: *Self) !void {
     self.seats.prepend(seat_node);
     try seat_node.data.init(default_seat_name);
 
-    if (build_options.xwayland) server.xwayland.setSeat(self.defaultSeat().wlr_seat);
+    server.xwayland.setSeat(self.defaultSeat().wlr_seat);
 
     server.backend.events.new_input.add(&self.new_input);
     self.input_inhibit_manager.events.activate.add(&self.inhibit_activate);

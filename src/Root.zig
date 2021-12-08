@@ -17,7 +17,6 @@
 
 const Self = @This();
 
-const build_options = @import("build_options");
 const std = @import("std");
 const mem = std.mem;
 const assert = std.debug.assert;
@@ -70,11 +69,7 @@ drag_icons: std.SinglyLinkedList(DragIcon) = .{},
 
 /// This list stores all unmanaged Xwayland windows. This needs to be in root
 /// since X is like the wild west and who knows where these things will go.
-xwayland_unmanaged_views: if (build_options.xwayland)
-    std.TailQueue(XwaylandUnmanaged)
-else
-    void = if (build_options.xwayland)
-.{},
+xwayland_unmanaged_views: std.TailQueue(XwaylandUnmanaged) = .{},
 
 /// Number of layout demands pending before the transaction may be started.
 pending_layout_demands: u32 = 0,

@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-const build_options = @import("build_options");
 const std = @import("std");
 const mem = std.mem;
 const os = std.os;
@@ -79,7 +78,7 @@ pub fn renderOutput(output: *Output) void {
         // Always clear with solid black for fullscreen
         renderer.clear(&[_]f32{ 0, 0, 0, 1 });
         renderView(output, view, &now);
-        if (build_options.xwayland) renderXwaylandUnmanaged(output, &now);
+        renderXwaylandUnmanaged(output, &now);
     } else {
         // No fullscreen view, so render normal layers/views
         renderer.clear(&server.config.background_color);
@@ -121,7 +120,7 @@ pub fn renderOutput(output: *Output) void {
             renderView(output, view, &now);
         }
 
-        if (build_options.xwayland) renderXwaylandUnmanaged(output, &now);
+        renderXwaylandUnmanaged(output, &now);
 
         renderLayer(output, output.getLayer(.top).*, &now, .toplevels);
 
