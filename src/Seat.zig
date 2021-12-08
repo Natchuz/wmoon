@@ -24,7 +24,6 @@ const wlr = @import("wlroots");
 const wl = @import("wayland").server.wl;
 const xkb = @import("xkbcommon");
 
-const command = @import("command.zig");
 const server = &@import("main.zig").server;
 const util = @import("util.zig");
 
@@ -317,47 +316,27 @@ pub fn handleViewUnmap(self: *Self, view: *View) void {
 }
 
 /// Handle any user-defined mapping for the passed keysym and modifiers
-/// Returns true if the key was handled
+/// LEFT FOR FUTURE USE
 pub fn handleMapping(
     self: *Self,
     keysym: xkb.Keysym,
     modifiers: wlr.Keyboard.ModifierMask,
     released: bool,
 ) bool {
-    const modes = &server.config.modes;
-    for (modes.items[self.mode_id].mappings.items) |*mapping| {
-        if (std.meta.eql(modifiers, mapping.modifiers) and keysym == mapping.keysym and released == mapping.release) {
-            if (mapping.repeat) {
-                self.repeating_mapping = mapping;
-                self.mapping_repeat_timer.timerUpdate(server.config.repeat_delay) catch {
-                    log.err("failed to update mapping repeat timer", .{});
-                };
-            }
-            self.runMappedCommand(mapping);
-            return true;
-        }
-    }
+    //const modes = &server.config.modes;
+    //for (modes.items[self.mode_id].mappings.items) |*mapping| {
+    //if (std.meta.eql(modifiers, mapping.modifiers) and keysym == mapping.keysym and released == mapping.release) {
+    //if (mapping.repeat) {
+    //self.repeating_mapping = mapping;
+    //self.mapping_repeat_timer.timerUpdate(server.config.repeat_delay) catch {
+    //log.err("failed to update mapping repeat timer", .{});
+    //};
+    //}
+    //self.runMappedCommand(mapping);
+    //return true;
+    //}
+    //}
     return false;
-}
-
-fn runMappedCommand(self: *Self, mapping: *const Mapping) void {
-    var out: ?[]const u8 = null;
-    defer if (out) |s| util.gpa.free(s);
-    const args = mapping.command_args;
-    command.run(util.gpa, self, args, &out) catch |err| {
-        const failure_message = switch (err) {
-            command.Error.Other => out.?,
-            else => command.errToMsg(err),
-        };
-        std.log.scoped(.command).err("{s}: {s}", .{ args[0], failure_message });
-        return;
-    };
-    if (out) |s| {
-        const stdout = std.io.getStdOut().writer();
-        stdout.print("{s}", .{s}) catch |err| {
-            std.log.scoped(.command).err("{s}: write to stdout failed {}", .{ args[0], err });
-        };
-    }
 }
 
 pub fn clearRepeatingMapping(self: *Self) void {
@@ -367,16 +346,17 @@ pub fn clearRepeatingMapping(self: *Self) void {
     self.repeating_mapping = null;
 }
 
-/// Repeat key mapping
+/// Repeat key mapping.
+/// LEFT FOR FUTURE USE.
 fn handleMappingRepeatTimeout(self: *Self) callconv(.C) c_int {
-    if (self.repeating_mapping) |mapping| {
-        const rate = server.config.repeat_rate;
-        const ms_delay = if (rate > 0) 1000 / rate else 0;
-        self.mapping_repeat_timer.timerUpdate(ms_delay) catch {
-            log.err("failed to update mapping repeat timer", .{});
-        };
-        self.runMappedCommand(mapping);
-    }
+    //if (self.repeating_mapping) |mapping| {
+    //const rate = server.config.repeat_rate;
+    //const ms_delay = if (rate > 0) 1000 / rate else 0;
+    //self.mapping_repeat_timer.timerUpdate(ms_delay) catch {
+    //log.err("failed to update mapping repeat timer", .{});
+    //};
+    //self.runMappedCommand(mapping);
+    //}
     return 0;
 }
 
