@@ -278,14 +278,6 @@ pub fn sendToOutput(self: *Self, destination_output: *Output) void {
     self.output.views.remove(node);
     destination_output.views.attach(node, server.config.attach_mode);
 
-    self.output.sendViewTags();
-    destination_output.sendViewTags();
-
-    if (self.pending.urgent) {
-        self.output.sendUrgentTags();
-        destination_output.sendUrgentTags();
-    }
-
     // if the view is mapped send enter/leave events
     if (self.surface != null) {
         self.sendLeave(self.output);
@@ -494,8 +486,6 @@ pub fn map(self: *Self) !void {
 
     self.sendEnter(self.output);
 
-    self.output.sendViewTags();
-
     if (!self.current.float) self.output.arrangeViews();
 
     server.root.startTransaction();
@@ -523,8 +513,6 @@ pub fn unmap(self: *Self) void {
 
     self.request_activate.link.remove();
 
-    self.output.sendViewTags();
-
     // Still need to arrange if fullscreened from the layout
     if (!self.current.float) self.output.arrangeViews();
 
@@ -534,16 +522,6 @@ pub fn unmap(self: *Self) void {
 pub fn notifyTitle(self: Self) void {
     if (self.foreign_toplevel_handle) |handle| {
         if (self.getTitle()) |s| handle.setTitle(s);
-    }
-    // Send title to all status listeners attached to a seat which focuses this view
-    var seat_it = server.input_manager.seats.first;
-    while (seat_it) |seat_node| : (seat_it = seat_node.next) {
-        if (seat_node.data.focused == .view and seat_node.data.focused.view == &self) {
-            var client_it = seat_node.data.status_trackers.first;
-            while (client_it) |client_node| : (client_it = client_node.next) {
-                client_node.data.sendFocusedView();
-            }
-        }
     }
 }
 

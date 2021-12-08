@@ -203,8 +203,6 @@ pub fn removeOutput(self: *Self, output: *Output) void {
     // Destroy all layouts of the output
     while (output.layouts.first) |layout_node| layout_node.data.destroy();
 
-    while (output.status_trackers.first) |status_node| status_node.data.destroy();
-
     // Arrange the root in case evacuated views affect the layout
     fallback_output.arrangeViews();
     self.startTransaction();
@@ -373,8 +371,6 @@ fn commitTransaction(self: *Self) void {
                 "changing current focus: {b:0>10} to {b:0>10}",
                 .{ output.current.tags, output.pending.tags },
             );
-            var it = output.status_trackers.first;
-            while (it) |node| : (it = node.next) node.data.sendFocusedTags(output.pending.tags);
         }
         output.current = output.pending;
 
@@ -405,9 +401,6 @@ fn commitTransaction(self: *Self) void {
 
             view.dropSavedBuffers();
         }
-
-        if (view_tags_changed) output.sendViewTags();
-        if (urgent_tags_dirty) output.sendUrgentTags();
 
         output.damage.addWhole();
     }

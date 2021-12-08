@@ -36,7 +36,6 @@ const Layout = @import("Layout.zig");
 const LayoutDemand = @import("LayoutDemand.zig");
 const View = @import("View.zig");
 const ViewStack = @import("view_stack.zig").ViewStack;
-const OutputStatus = @import("OutputStatus.zig");
 
 const State = struct {
     /// A bit field of focused tags
@@ -88,9 +87,6 @@ layout_namespace: ?[]const u8 = null,
 
 /// Bitmask that whitelists tags for newly spawned views
 spawn_tagmask: u32 = std.math.maxInt(u32),
-
-/// List of status tracking objects relaying changes to this output to clients.
-status_trackers: std.SinglyLinkedList(OutputStatus) = .{},
 
 destroy: wl.Listener(*wlr.Output) = wl.Listener(*wlr.Output).init(handleDestroy),
 enable: wl.Listener(*wlr.Output) = wl.Listener(*wlr.Output).init(handleEnable),
@@ -148,23 +144,6 @@ pub fn init(self: *Self, wlr_output: *wlr.Output) !void {
 
 pub fn getLayer(self: *Self, layer: zwlr.LayerShellV1.Layer) *std.TailQueue(LayerSurface) {
     return &self.layers[@intCast(usize, @enumToInt(layer))];
-}
-
-pub fn sendViewTags(self: Self) void {
-    var it = self.status_trackers.first;
-    while (it) |node| : (it = node.next) node.data.sendViewTags();
-}
-
-pub fn sendUrgentTags(self: Self) void {
-    var urgent_tags: u32 = 0;
-
-    var view_it = self.views.first;
-    while (view_it) |node| : (view_it = node.next) {
-        if (node.view.current.urgent) urgent_tags |= node.view.current.tags;
-    }
-
-    var it = self.status_trackers.first;
-    while (it) |node| : (it = node.next) node.data.sendUrgentTags(urgent_tags);
 }
 
 pub fn arrangeFilter(view: *View, filter_tags: u32) bool {

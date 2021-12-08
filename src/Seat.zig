@@ -35,7 +35,6 @@ const Keyboard = @import("Keyboard.zig");
 const Mapping = @import("Mapping.zig");
 const LayerSurface = @import("LayerSurface.zig");
 const Output = @import("Output.zig");
-const SeatStatus = @import("SeatStatus.zig");
 const View = @import("View.zig");
 const ViewStack = @import("view_stack.zig").ViewStack;
 
@@ -78,9 +77,6 @@ focused: FocusTarget = .none,
 /// Stack of views in most recently focused order
 /// If there is a currently focused view, it is on top.
 focus_stack: ViewStack(*View) = .{},
-
-/// List of status tracking objects relaying changes to this seat to clients.
-status_trackers: std.SinglyLinkedList(SeatStatus) = .{},
 
 /// True if a pointer drag is currently in progress
 pointer_drag: bool = false,
@@ -263,23 +259,12 @@ pub fn setFocusRaw(self: *Self, new_focus: FocusTarget) void {
             }
         }
     }
-
-    // Inform any clients tracking status of the change
-    var it = self.status_trackers.first;
-    while (it) |node| : (it = node.next) node.data.sendFocusedView();
 }
 
 /// Focus the given output, notifying any listening clients of the change.
 pub fn focusOutput(self: *Self, output: *Output) void {
     if (self.focused_output == output) return;
-
-    var it = self.status_trackers.first;
-    while (it) |node| : (it = node.next) node.data.sendOutput(.unfocused);
-
     self.focused_output = output;
-
-    it = self.status_trackers.first;
-    while (it) |node| : (it = node.next) node.data.sendOutput(.focused);
 
     if (self.focused_output == &server.root.noop_output) return;
 
