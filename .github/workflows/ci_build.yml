@@ -68,8 +68,6 @@ jobs:
 
       - name: fmt
         run: |
-          zig fmt --check river/
-          zig fmt --check riverctl/
-          zig fmt --check rivertile/
-          zig fmt --check example/
+          zig fmt --check src/
           zig fmt --check build.zig
+          zig fmt --check flags.zig
