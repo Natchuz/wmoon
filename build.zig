@@ -80,6 +80,7 @@ fn addServerDeps(exe: *zbs.LibExeObjStep, scanner: *ScanProtocolsStep) void {
         .path = "deps/zig-wlroots/src/wlroots.zig",
         .dependencies = &[_]zbs.Pkg{ wayland, xkbcommon, pixman },
     };
+    const clap = zbs.Pkg{ .name = "clap", .path = "deps/zig-clap/clap.zig" };
 
     exe.step.dependOn(&scanner.step);
 
@@ -99,7 +100,8 @@ fn addServerDeps(exe: *zbs.LibExeObjStep, scanner: *ScanProtocolsStep) void {
     exe.addPackage(wlroots);
     exe.linkSystemLibrary("wlroots");
 
-    exe.addPackagePath("flags", "flags.zig");
+    exe.addPackage(clap);
+
     exe.addCSourceFile("src/wlroots_log_wrapper.c", &[_][]const u8{ "-std=c99", "-O2" });
 
     // TODO: remove when zig issue #131 is implemented

@@ -1,77 +1,81 @@
-// This file is part of river, a dynamic tiling wayland compositor.
-//
-// Copyright 2020 The River Developers
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
-
 const build_options = @import("build_options");
 const std = @import("std");
 const fs = std.fs;
 const io = std.io;
 const os = std.os;
 const wlr = @import("wlroots");
-const flags = @import("flags");
+const clap = @import("clap");
 
 const c = @import("c.zig");
 const util = @import("util.zig");
 
 const Server = @import("Server.zig");
 
+/// Message that will be displayed for help.
 const usage: []const u8 =
-    \\usage: river [options]
+    \\usage: wmoon [options]
     \\
-    \\  -h                 Print this help message and exit.
-    \\  -version           Print the version number and exit.
-    \\  -c <command>       Run `sh -c <command>` on startup.
-    \\  -log-level <level> Set the log level to error, warning, info, or debug.
+    \\  -h, --help               Print this help message and exit.
+    \\      --version            Print the version number and exit.
+    \\  -l, -log-level <level>   Set the log level to error, warning, info, or debug.
+    \\
     \\
 ;
 
+/// Flags for clap, arguments parser.
+const params = comptime [_]clap.Param(void){
+    .{
+        .names = .{ .short = 'h', .long = "help" },
+    },
+    .{
+        .names = .{ .long = "version" },
+    },
+    .{
+        .names = .{ .short = 'l', .long = "log-level" },
+        .takes_value = .one,
+    },
+};
+
+/// Global singleton to Server.
+/// TODO: remove.
 pub var server: Server = undefined;
 
 pub fn main() anyerror!void {
-    // This line is here because of https://github.com/ziglang/zig/issues/7807
-    const argv: [][*:0]const u8 = os.argv;
-    const result = flags.parse(argv[1..], &[_]flags.Flag{
-        .{ .name = "-h", .kind = .boolean },
-        .{ .name = "-version", .kind = .boolean },
-        .{ .name = "-c", .kind = .arg },
-        .{ .name = "-log-level", .kind = .arg },
-    }) catch {
-        try io.getStdErr().writeAll(usage);
+
+    // Let's parse our flags.
+    // Setup optional Diagnostic for error reporting.
+    var diag = clap.Diagnostic{};
+    var args = clap.parse(void, &params, .{ .diagnostic = &diag }) catch |err| {
+        // Report useful error and exit.
+        diag.report(io.getStdErr().writer(), err) catch {};
         os.exit(1);
     };
-    if (result.boolFlag("-h")) {
+    defer args.deinit();
+
+    // Print help if requested.
+    if (args.flag("--help")) {
         try io.getStdOut().writeAll(usage);
         os.exit(0);
     }
-    if (result.args.len != 0) {
-        std.log.err("unknown option '{s}'", .{result.args[0]});
-        try io.getStdErr().writeAll(usage);
-        os.exit(1);
-    }
 
-    if (result.boolFlag("-version")) {
+    // Print version if requested.
+    if (args.flag("--version")) {
         try io.getStdOut().writeAll(build_options.version ++ "\n");
         os.exit(0);
     }
-    if (result.argFlag("-log-level")) |level_str| {
+
+    // Set the log level.
+    if (args.option("--log-level")) |level_str| {
+
+        // Let's convert string to enum literal.
         const level = std.meta.stringToEnum(LogLevel, std.mem.span(level_str)) orelse {
-            std.log.err("invalid log level '{s}'", .{level_str});
+
+            // Bail if user specified invalid level.
+            std.log.err("Invalid log level '{s}'. Use error, warning, info or debug", .{level_str});
             try io.getStdErr().writeAll(usage);
             os.exit(1);
         };
+
         runtime_log_level = switch (level) {
             .@"error" => .err,
             .warning => .warn,
@@ -79,50 +83,25 @@ pub fn main() anyerror!void {
             .debug => .debug,
         };
     }
-    const startup_command = blk: {
-        if (result.argFlag("-c")) |command| {
-            break :blk try util.gpa.dupeZ(u8, std.mem.span(command));
-        } else {
-            break :blk try defaultInitPath();
-        }
-    };
 
+    // Log handler for wlroots requres some special treatment,
+    // use this function to set it.
     river_init_wlroots_log(switch (runtime_log_level) {
         .debug => .debug,
         .notice, .info => .info,
         .warn, .err, .crit, .alert, .emerg => .err,
     });
 
-    std.log.info("initializing server", .{});
+    // Initialize and boostrap server.
+    std.log.info("Initializing server", .{});
     try server.init();
     defer server.deinit();
-
     try server.start();
 
-    // Run the child in a new process group so that we can send SIGTERM to all
-    // descendants on exit.
-    const child_pgid = if (startup_command) |cmd| blk: {
-        std.log.info("running init executable '{s}'", .{cmd});
-        const child_args = [_:null]?[*:0]const u8{ "/bin/sh", "-c", cmd, null };
-        const pid = try os.fork();
-        if (pid == 0) {
-            if (c.setsid() < 0) unreachable;
-            if (os.system.sigprocmask(os.SIG_SETMASK, &os.empty_sigset, null) < 0) unreachable;
-            os.execveZ("/bin/sh", &child_args, std.c.environ) catch c._exit(1);
-        }
-        util.gpa.free(cmd);
-        // Since the child has called setsid, the pid is the pgid
-        break :blk pid;
-    } else null;
-    defer if (child_pgid) |pgid| os.kill(-pgid, os.SIGTERM) catch |err| {
-        std.log.err("failed to kill init process group: {s}", .{@errorName(err)});
-    };
-
-    std.log.info("running server", .{});
-
+    // Run wayland loop, blocking the execution of a program.
+    std.log.info("Running server", .{});
     server.wl_server.run();
-
-    std.log.info("shutting down", .{});
+    std.log.info("Shutting down", .{});
 }
 
 fn defaultInitPath() !?[:0]const u8 {
