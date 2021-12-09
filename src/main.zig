@@ -171,3 +171,7 @@ export fn river_wlroots_log_callback(importance: wlr.log.Importance, ptr: [*:0]c
         .silent, .last => unreachable,
     }
 }
+
+test "wmoon test suite" {
+    _ = @import("view_stack.zig");
+}

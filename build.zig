@@ -63,7 +63,7 @@ pub fn build(b: *zbs.Builder) !void {
     run_step.dependOn(&wmoon_run.step);
 
     // Test step
-    const wmoon_test = b.addTest("src/test_main.zig");
+    const wmoon_test = b.addTest("src/main.zig");
     wmoon_test.setTarget(target);
     wmoon_test.setBuildMode(mode);
     addServerDeps(wmoon_test, scanner);
