@@ -70,4 +70,3 @@ jobs:
         run: |
           zig fmt --check src/
           zig fmt --check build.zig
-          zig fmt --check flags.zig
