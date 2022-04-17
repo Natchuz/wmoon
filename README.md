@@ -1,3 +1,6 @@
+**Notice: this project is now stalled and will be rebooted again once I reimplement [Wren](https://wren.io) interpereter in Zig for more felxibility.**
+This project was originally supposed to use Wren as scripting language, but switched to Lua because of limitations of offical WrenVM implementation. Now I have learned that Lua is no different...
+
 # 🌕 wmoon
 
 wmoon is a Wayland window manager in spirit of [awesome](https://github.com/awesomeWM/awesome), written in Zig.
